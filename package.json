@@ -1,0 +1,26 @@
+{
+  "name": "TopChartMusic",
+  "version": "0.0.1",
+  "description": "Create Youtube Music Api from Top Chart Music by seedcave.com ",
+  "keywords": [
+    "TopChartMusic",
+    "Youtube",
+    "Api",
+    "Music",
+    "TopChart"
+  ],
+  "author": "Jumphol Tangtrairattanakul <myusernamejeep@gmail.com>",
+  "main": "./index.js",
+ 
+  "devDependencies": {
+    "youtube-feeds": "*",
+    "q": "*",
+    "restify": "*",
+    "jsdom": "*",
+    "mongodb":"*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/myusernamejeep/TopChartMusic.git"
+  }
+}
