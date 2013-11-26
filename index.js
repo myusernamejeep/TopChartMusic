@@ -174,7 +174,7 @@ function getZeedIndexRespond(req, res, next) {
   			console.log("end database");
 	    }).then(function(){
 	    	console.log("wrteFile");
-  			wrteFile(search_result);
+  			wrteFile(search_result,mongoCollectionName);
   		}).then(function(data){
 			res.send(search_result);
 		});
@@ -182,7 +182,7 @@ function getZeedIndexRespond(req, res, next) {
     });
 }
 
-function wrteFile(data){
+function wrteFile(data,mongoCollectionName){
 
 	var deferred = Q.defer();
 	var outputFilename =  __dirname + '/zeed_fixures/'+  mongoCollectionName + '.json';
@@ -201,7 +201,7 @@ function wrteFile(data){
 	return deferred.promise;
 }
 
-function readFile(){
+function readFile(mongoCollectionName){
  
 	var deferred = Q.defer();
 	var file = __dirname + '/zeed_fixures/'+  mongoCollectionName + '.json' ;
@@ -220,10 +220,10 @@ function readFile(){
 	return deferred.promise;
 }
 
-function getStaticData(){
-
+function getStaticData(mongoCollectionName){
+	var mongoCollectionName = mongoCollectionName || '2013-11-03';
 	var deferred = Q.defer();
-	readFile().then(function(data){
+	readFile(mongoCollectionName).then(function(data){
 		connect().then(function(){
 	       	database.collection(mongoCollectionName).save(data);
 	        deferred.resolve(data);
@@ -310,14 +310,132 @@ function getZeedList(){
 function getZeedListrespond(req, res, next) {
   res.send(getZeedList());
 } 
- 
 
+function getZeedPlaylist(){
+	
+	var deferred = Q.defer();
+	var base_url = "http://www.seedcave.com";
+	var results = [];
+	
+	jsdom.env({
+	  url: "http://www.seedcave.com/index.php/listen/the-playlists",
+	  scripts: ["http://code.jquery.com/jquery.js"],
+	  done: function (errors, window) {
+	  	var $ = require('jquery').create(window);
+
+	  	var alist = $('.element.element-image.element-imagepro.first.last').find('a');
+	  	alist.each(function (index,  a) {
+	      var _a    = $(a);
+	      var href  = base_url + _a.attr('href');
+	      var src   = base_url + _a.find('img').attr('src');
+	      var title = _a.attr('title');
+	      console.log(" href ", href, src , title);
+	 
+	      results.push({href:href, src:src, title:title});
+	    });
+	  
+	  	deferred.resolve(results);
+	  }
+	});
+
+	return deferred.promise;
+}
+
+function getZeedPlaylistRespond(req, res, next) {
+	getZeedPlaylist().then(function(results){
+      res.send(maxResults);
+    }); 
+} 
+
+function getJsonPlaylist(href){
+	var deferred = Q.defer();
+	//var zeed_index = [];
+	// execute function list
+	zeed_index = [];
+	getPlayList(href).then(function(zeed_list){
+		qMap(
+		    zeed_list,
+		    searchYoutubeByViewCountToZeedIndex )
+		.then(function(xxx){
+			//console.log( 'zeed_index', zeed_index , xxx);
+		    deferred.resolve(zeed_index);
+		});
+	});
+ 
+	return deferred.promise;
+}
+
+function upDateAllPlayList(){
+	
+	var deferred = Q.defer();
+	getZeedPlaylist().then(function(results){
+		var href_list = [];
+      	for(i=0; i< results.length ; i++){
+	      	var href = results[i].href;
+ 	 		href_list.push(href);
+  	  	}
+ 	  	qMap(
+		    href_list,
+		    getJsonPlaylist )
+		.then(function(xxx){
+ 		    deferred.resolve(zeed_index);
+		});
+	 
+    }); 
+
+    return deferred.promise;
+}
+
+function upDateAllPlayListRespond(req, res, next) {
+  	upDateAllPlayList().then(function(search_result){
+		res.send(search_result || {});	
+    });
+}
+
+function getPlayList(url){
+
+	var deferred = Q.defer();
+	var base_url = "http://www.seedcave.com";
+	var results = [];
+	jsdom.env({
+	  url: url,
+	  scripts: ["http://code.jquery.com/jquery.js"],
+	  done: function (errors, window) {
+	  	var $ = require('jquery').create(window);
+
+	  	var plist = $('.FreeForm').find('span');
+	  	plist = plist.splice(5);
+
+	  	for(i=0; i< plist.length ; i++){
+	      	var p = plist[i];
+	      	var _p  = $(p).html().substring(3).trim();
+	  
+    	}
+	    deferred.resolve(results);
+	  }
+	});
+
+	return deferred.promise;
+}
+ 
+function getPlayListRespond(req, res, next) {
+  	console.log('url q = ' + req.params.url  );
+  	getPlayList(req.params.url).then(function(search_result){
+      res.send(search_result);
+    });
+}
+	  
 var server = restify.createServer();
   
 server.get('/search/:query', getSearch);
+server.get('/getZeedPlaylist', getZeedPlaylistRespond); 
+server.get('/getPlayList/:url', getPlayListRespond); 
 server.get('/getZeedList', getZeedListrespond); 
 server.get('/updateZeedIndex', getZeedIndexRespond); 
 server.get('/zeedIndex', getStaticDataRespond); 
+
+server.get('/upDateAllPlayList', upDateAllPlayListRespond); 
+
 
 server.listen(3001, function() {
   console.log('%s listening at %s', server.name, server.url);
